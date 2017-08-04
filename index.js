@@ -299,4 +299,8 @@ client.on('message', (message) => {
 	}
 });
 
+<<<<<<< HEAD
 client.login("xxx");
+=======
+client.login("##################################################");
+>>>>>>> 7fdc3f264e08ea80d0fc239b308a7f94f2fb29ee
