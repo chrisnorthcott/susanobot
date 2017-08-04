@@ -3,12 +3,23 @@ const client = new Discord.Client();
 const fs = require("fs");
 const Request = require("request");
 const ytdl = require('ytdl-core');
+const moment = require('moment');
 
-const VOICECHANNEL = "SexybotTime";
+const VOICECHANNEL = "Raid"
 
 var nextraid;
 var voiceavailable;
 var vconn;
+
+var roster = {
+	'datetime': 0,
+	'tanks': ['None', 'None'],
+	'healers': ['None', 'None'],
+	'dps': ['None', 'None', 'None', 'None']
+}
+
+//hack to make the blank roster object immutable
+var currentRoster = JSON.parse(JSON.stringify(roster));
 
 function Percentile(x)
 {
@@ -109,6 +120,7 @@ client.on('message', (message) => {
 	///
 	function joinVoiceChannel(x)
 	{
+		console.log(client.channels.find('name', x).joinable);
 		return client.channels.find('name', x).join();
 	}	
 	function leaveVoiceChannel(x){
@@ -120,7 +132,73 @@ client.on('message', (message) => {
 			.then(vconn =>{
 				const ds = vconn.playArbitraryInput('./svf/' + filename + '.mp3', {seek:0});
 				ds.on('end', end => {vconn.disconnect()});
+			})
+			.catch(console.error);
+	}
+	if(message.content.startsWith("!roster")){
+		
+		var args = message.content.split(' ');
+		fs.readFile('/tmp/nextraid', 'utf-8', function(err, data){
+			if(!err){
+				currentRoster = JSON.parse(data);
+			}else{
+				console.log("Couldn't read nextraid data");
+			}
+		});
+		switch(args[1])
+		{
+			case 'clear': 
+				currentRoster = JSON.parse(JSON.stringify(roster));;
+				message.channel.send("Roster cleared.");
+				break;
+			case 'show':
+				var t = new Date(currentRoster.datetime);
+				var outmsg = "Current raid roster for " + moment(t.toISOString()).format('MMMM Do YYYY, h:mm a') +
+					" (" + moment(t.toISOString()).fromNow() + ")"+
+					"\n<:tank:343069630321000459> " + currentRoster.tanks[0] +
+					"\n<:tank:343069630321000459> " + currentRoster.tanks[1] +
+					"\n<:heal:343069630534778890> " + currentRoster.healers[0] +
+					"\n<:heal:343069630534778890> " + currentRoster.healers[1] +
+					"\n<:dps:343069630270537729> " + currentRoster.dps[0] +
+					"\n<:dps:343069630270537729> " + currentRoster.dps[1] +
+					"\n<:dps:343069630270537729> " + currentRoster.dps[2] +
+	        			"\n<:dps:343069630270537729> " + currentRoster.dps[3];
+				message.channel.send(outmsg);
+				break;
+			case 'add':
+				var role = args[2];
+				var firstname = args[3];
+				var lastname = args[4];
+				switch(role){
+					case 'tank': 
+						currentRoster.tanks.pop(); 
+						currentRoster.tanks.unshift(firstname + ' ' + lastname);
+						break;
+					case 'healer':
+						currentRoster.healers.pop();
+						currentRoster.healers.unshift(firstname + ' ' + lastname);
+						break;
+					case 'dps':
+						currentRoster.dps.pop();
+						currentRoster.dps.unshift(firstname + ' ' + lastname);
+				}
+				message.channel.send(":ok_hand:");
+				break;
+			case 'settime':
+				currentRoster.datetime = Date.parse(message.content.substr(15));
+				message.channel.send(":ok_hand:");
+				break;
+			default:
+				message.channel.send("Valid !roster commands are: clear, show, add [role] [name], settime [time]");
+				
+		}
+		if(currentRoster.datetime > 0)
+		{		
+			fs.writeFile('/tmp/nextraid', JSON.stringify(currentRoster), function(err, data){
+				if(err)
+					console.log("Couldn't write nextraid data, will be forgotten on restart.");
 			});
+		}
 	}
 	if(message.content.startsWith("!revels")){
 		message.channel.send("LET THE RRRRRREVELS BEGINNN!");
@@ -171,41 +249,23 @@ client.on('message', (message) => {
 	}
 	if(message.content.startsWith("!wild")){
 		message.channel.send("WILD AND PURE AND FORRRREVER FREEEEEE!");
-		playVoiceLine
+		playVoiceLine("wild");
 	}
 	if(message.content.startsWith("!setnextraid"))
 	{
-		message.channel.send("UNDERSTOOD, WARRIOR OF LIGHT.");	
-		nextraid = message.content.substring(12);
-		fs.writeFile('/tmp/nextraid', nextraid, function(err, data) {
-			if(err) console.log("Couldn't write file, !nextraid will not have persistence.");
-		});
+		message.reply("!nextraid is now obsolete, use !roster instead.");
 	}
 	if(message.content.startsWith("!nextraid"))
 	{
-		fs.readFile('/tmp/nextraid', 'utf8', function(err, data) {
-			if(err) {
-				console.log("Couldn't load !nextraid data" +
-				err + ", is a date/time saved?");
-			}
-			nextraid = data;
-			if(!nextraid)
-			{
-				message.channel.send("MY APOLOGIES. I HAVE NO IDEA.");
-			}else{
-				message.channel.send("THE NEXT SCHEDULED RAID NIGHT IS" + nextraid.toUpperCase());
-			}
-
-		});
-		
+		message.reply("!nextraid is now obsolete, use !roster instead.");	
 	}
 	if(message.content.startsWith("!play")){
-		leaveVoiceChannel("SexybotTime");
+		leaveVoiceChannel(VOICECHANNEL);
 		var params = message.content.split(' ');
 		var vid = params[1];
 		var url = "http://www.youtube.com/watch?v=" + vid;
 		console.log(url);
-                joinVoiceChannel("SexybotTime").then(vconn=>{
+                joinVoiceChannel(VOICECHANNEL).then(vconn=>{
                         const strm = ytdl(url, {filter: 'audioonly'});
 	                const dispatcher = vconn.playStream(strm);
 
@@ -214,7 +274,17 @@ client.on('message', (message) => {
 
 	}
 	if(message.content.startsWith("!stop")){
-		leaveVoiceChannel("SexybotTime");
+		leaveVoiceChannel(VOICECHANNEL);
+	}
+	if(message.content.startsWith("!help")){
+		outmsg = "\nAvailable !commands:\n\n";
+		outmsg += "!fflogs <firstname> <lastname> <world> <encounter>\n"
+		outmsg += "!help-fflogs (for more detailed help)\n"
+		outmsg += "!play <YTVideoID>\n"
+		outmsg += "!stop\n"
+		outmsg += "!wild !cake !earthandstone !seas !ferocity !resilient !rise !makeway !chaos !dance !rejoice !revels\n"
+		outmsg += "!roster (on its own, will provide help for the command)\n";
+		message.channel.send(outmsg);
 	}
 	if(message.content.startsWith("!help-fflogs")){
 		outmsg = "\nTo retrieve FFlogs data:";
@@ -229,4 +299,4 @@ client.on('message', (message) => {
 	}
 });
 
-client.login("MzQyMjg0MzI1NzY2ODIzOTQ3.DGNaMA.-B_7jDMNeRL7TxajWkmIVcD8W7U");
+client.login("xxx");
