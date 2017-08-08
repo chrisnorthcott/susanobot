@@ -4,15 +4,22 @@ const fs = require("fs");
 const Request = require("request");
 const ytdl = require('ytdl-core');
 const moment = require('moment');
-
-const VOICECHANNEL = "Raid"
+const worker = require('webworker-threads').Worker;
+const twss = require('twss');
+const VOICECHANNEL = "Stuff";
 
 var nextraid;
-var voiceavailable;
+var playlist = [];
+var playlistposition = 0;
 var vconn;
+var w;
+var lewd = false;
+
+twss.threshold = 0.99;
 
 var roster = {
 	'datetime': 0,
+	'topic': '',
 	'tanks': ['None', 'None'],
 	'healers': ['None', 'None'],
 	'dps': ['None', 'None', 'None', 'None']
@@ -77,6 +84,16 @@ client.on('ready', () => {
 });
 
 client.on('message', (message) => {
+	console.log(message.content + " - probability of lewd: " + twss.prob(message.content));
+	if(twss.is(message.content) && lewd)	
+	{
+		message.channel.send("OwO");
+	}
+	if(message.content.startsWith("!lewd"))
+	{
+		lewd = !lewd;
+		message.channel.send("TWSS " + ((lewd)? 'on': 'off') + ".");	
+	}
 	if(message.content.startsWith("!fflogs")){
 		var outmsg;
 		var args = message.content.split(" ");
@@ -128,9 +145,11 @@ client.on('message', (message) => {
 	}
 	function playVoiceLine(filename)
 	{
+	
 		joinVoiceChannel(VOICECHANNEL)
 			.then(vconn =>{
-				const ds = vconn.playArbitraryInput('./svf/' + filename + '.mp3', {seek:0});
+				console.log(vconn);
+				const ds = vconn.playArbitraryInput('./svf/' + filename , {seek:0});
 				ds.on('end', end => {vconn.disconnect()});
 			})
 			.catch(console.error);
@@ -148,14 +167,19 @@ client.on('message', (message) => {
 		switch(args[1])
 		{
 			case 'clear': 
-				currentRoster = JSON.parse(JSON.stringify(roster));;
+				//there is probably a more efficient way to do this
+				currentRoster.tanks[0] = currentRoster.tanks[1] =
+				currentRoster.healers[0] = currentRoster.healers[1] =
+				currentRoster.dps[0] = currentRoster.dps[1] = 
+				currentRoster.dps[2] = currentRoster.dps[3] = 'None';
 				message.channel.send("Roster cleared.");
 				break;
 			case 'show':
 				var t = new Date(currentRoster.datetime);
 				var outmsg = "Current raid roster for " + moment(t.toISOString()).format('MMMM Do YYYY, h:mm a') +
-					" (" + moment(t.toISOString()).fromNow() + ")"+
-					"\n<:tank:343069630321000459> " + currentRoster.tanks[0] +
+					" (" + moment(t.toISOString()).utcOffset('+0300').fromNow() + ")"+
+					"\n**" + currentRoster.topic +
+					"**\n<:tank:343069630321000459> " + currentRoster.tanks[0] +
 					"\n<:tank:343069630321000459> " + currentRoster.tanks[1] +
 					"\n<:heal:343069630534778890> " + currentRoster.healers[0] +
 					"\n<:heal:343069630534778890> " + currentRoster.healers[1] +
@@ -184,6 +208,10 @@ client.on('message', (message) => {
 				}
 				message.channel.send(":ok_hand:");
 				break;
+			case 'settopic':
+				currentRoster.topic = message.content.substr(17);
+				message.channel.send(":ok_hand:");
+				break;		
 			case 'settime':
 				currentRoster.datetime = Date.parse(message.content.substr(15));
 				message.channel.send(":ok_hand:");
@@ -200,56 +228,69 @@ client.on('message', (message) => {
 			});
 		}
 	}
+	if(message.content.startsWith("I AM THE LORD OF THE HIVE"))
+	{
+		message.channel.send("CAN'T WE JUST GO FOR A DRINK? I'M LORD OF THE REVEL, NOT LORD OF THE MASS MURDER OF INNOCENTS. HA HA HA HA!");
+	}
+	if(message.content.startsWith("SUSANO IS AS WEAK AS HIS CREATOR!"))
+	{
+		message.channel.send("I THOUGHT WE WERE BUDDIES, BRO. WHY?");
+	}
 	if(message.content.startsWith("!revels")){
 		message.channel.send("LET THE RRRRRREVELS BEGINNN!");
-		playVoiceLine("revels");
+		playVoiceLine("revels.mp3");
 	}
 	if(message.content.startsWith("!rejoice")){
 		message.channel.send("REJOICE!");
-		playVoiceLine("rejoice");
+		playVoiceLine("rejoice.mp3");
 	}
 	if(message.content.startsWith("!dance")){
 		message.channel.send("AHAHAHAHAHAH! 'TWAS A MEMORABLE DANCE INDEED!");
-		playVoiceLine("dance");
+		playVoiceLine("dance.mp3");
 	}
 	if(message.content.startsWith("!chaos"))
 	{
 		message.channel.send("HOW OUR HEARTS SING IN THE CHAOS!");
-		playVoiceLine("chaos");
+		playVoiceLine("chaos.mp3");
 	}
 	if(message.content.startsWith("!makeway")){
 		message.channel.send("MAKE WAY!");
-		playVoiceLine("makeway");
+		playVoiceLine("makeway.mp3");
 	}
 	if(message.content.startsWith("!rise")){
 		message.channel.send("RISE....RISE TO THE OCCASION!");
-		playVoiceLine("rise");
+		playVoiceLine("rise.mp3");
 	}
 	if(message.content.startsWith("!resilient")){
 		message.channel.send("RESILIENT SOULS! I SALUTE YOU!");
-		playVoiceLine("resilient");
+		playVoiceLine("resilient.mp3");
 	}
 	if(message.content.startsWith("!ferocity")){
 		message.channel.send("SUCH... FEROCITY!");
-		playVoiceLine("ferocity");
+		playVoiceLine("ferocity.mp3");
 	}
 	if(message.content.startsWith("!seas")){
 		message.channel.send("THE SEAS PART FOR WE ALONE!");
-		playVoiceLine("seas");
+		playVoiceLine("seas.mp3");
+	}
+	if(message.content.startsWith("!identitycrisis"))
+	{
+		message.channel.send("I DON'T KNOW WHICH PRIMAL I AM ANY MORE");
+		playVoiceLine("ravana.wav");
 	}
 	if(message.content.startsWith("!earthandstone")){
 		message.channel.send("EARTH AND STONE AT OUR BECK AND CALL!");
-		playVoiceLine("earthandstone");
+		playVoiceLine("earthandstone.mp3");
 	}
 	if(message.content.startsWith("!cake")){
-		message.channel.send("I'M A PRIMAL BITCH, I DON'T BAKE CAKES");
+		message.channel.send("I'M A PRIMAL BITCH, I BAKE THE BEST CAKES");
 	}
 	if(message.content.startsWith("KRAFT DES MEERES")){
 		message.channel.send("I AM OKAY WITH THIS.");
 	}
 	if(message.content.startsWith("!wild")){
 		message.channel.send("WILD AND PURE AND FORRRREVER FREEEEEE!");
-		playVoiceLine("wild");
+		playVoiceLine("wild.mp3");
 	}
 	if(message.content.startsWith("!setnextraid"))
 	{
@@ -259,10 +300,24 @@ client.on('message', (message) => {
 	{
 		message.reply("!nextraid is now obsolete, use !roster instead.");	
 	}
+	if(message.content.startsWith("!joke"))
+	{
+		var jokes = [
+			"What do you get when you cross a penis and a potato? A dictator",
+			"A penis has a sad life, his hair is a mess, his family is nuts, his neightbour is an asshole "+
+			"and his owner beats him.",
+			"My dick is so big that at birth, instead of spanking me, the doctor smashed me with a bottle of champagne.",
+			"I got this great joke about my penis, but it's too long.",
+			"If I laid my dick out on my computer keyboard, it would go all the way from A to Z!"
+		];
+		var rnd = Math.floor(Math.random() * jokes.length);
+		message.channel.send(jokes[rnd]);
+	}
 	if(message.content.startsWith("!play")){
 		leaveVoiceChannel(VOICECHANNEL);
 		var params = message.content.split(' ');
 		var vid = params[1];
+		if(vid.startsWith("http")) vid = vid.substr(31);
 		var url = "http://www.youtube.com/watch?v=" + vid;
 		console.log(url);
                 joinVoiceChannel(VOICECHANNEL).then(vconn=>{
@@ -273,6 +328,82 @@ client.on('message', (message) => {
                 });
 
 	}
+	if(message.content.startsWith("!plist")){
+		//doesn't work.... yet.
+		var args = message.content.split(' ');
+		switch(args[1])
+		{
+			case 'clear':
+				playlist = [];
+				message.channel.send(":ok_hand:");
+				break;
+			case 'add':
+				var vid = args[2];
+		                if(vid.startsWith("http")) vid = vid.substr(31);
+				playlist.push(vid);
+				message.channel.send(":ok_hand:");
+				break;
+			case 'remove':
+				if(args[2]){
+					playlist.splice(args[2],1);
+				}else{
+					playlist.pop();
+				}
+				break;
+			case 'show':
+				outmsg = "Current playlist:\n";
+				var i = 0;
+				for(i = 0; i < playlist.length; i++)
+				{
+					outmsg += i + ": http://www.youtube.com/watch?v=" + playlist[i] + "\n";
+				}
+				if(i == 0)
+				{
+					outmsg += "(Empty)";
+				}
+				message.channel.send(outmsg);
+				break;
+			case 'next':
+				w.postMessage({cmd:"next", channel: client.channels.find('name', VOICECHANNEL)});
+				message.channel.send("Now playing: http://www.youtube.com/watch?v=" + playlist[playlistposition]);	
+				break;
+			case 'prev':
+				w.postMessage({cmd:"prev"});
+				message.channel.send("Now playing: http://www.youtube.com/watch?v=" + playlist[playlistposition]);
+				break;
+			case 'play':
+				w = new worker(function(){
+					this.onmessage = function(ev){
+						var cmd = ev.data.cmd;
+						var channel = ev.data.channel;
+						console.log("Inside worker thread, channel metadata: " + channel);
+						console.log("worker message recd:" + ev.data.cmd);
+						switch(ev.data.cmd){
+							case 'next': playlistpositon++; break;
+							case 'prev': playlistposition--; break;
+							case 'begin':
+							default:
+						}
+						channel.join();
+						return;
+						leaveVoiceChannel(VOICECHANNEL);
+						joinVoiceChannel(VOICECHANNEL).then(vconn => {
+							console.log("vc " + VOICECHANNEL + "entered, playing.");
+							var url = "http://www.youtube.com/watch?v=" + playlist[playlistposition];
+							const strm = ytdl(url, { filter: 'audioonly'});
+							const dispatcher = vconn.playStream(strm);
+							console.log(url);
+							dispatcher.on('end', end => {
+								playlistPosition++;
+								this.postMessage('next');
+							});
+						}).catch(console.error);
+					}
+				});
+				w.postMessage({cmd:'begin', channel: client.channels.find('name', VOICECHANNEL)});
+				break;
+		}
+	}
 	if(message.content.startsWith("!stop")){
 		leaveVoiceChannel(VOICECHANNEL);
 	}
@@ -282,6 +413,7 @@ client.on('message', (message) => {
 		outmsg += "!help-fflogs (for more detailed help)\n"
 		outmsg += "!play <YTVideoID>\n"
 		outmsg += "!stop\n"
+		outmsg += "!lewd (toggles That's What She Said bayesian classifier)\n"
 		outmsg += "!wild !cake !earthandstone !seas !ferocity !resilient !rise !makeway !chaos !dance !rejoice !revels\n"
 		outmsg += "!roster (on its own, will provide help for the command)\n";
 		message.channel.send(outmsg);
@@ -299,8 +431,4 @@ client.on('message', (message) => {
 	}
 });
 
-<<<<<<< HEAD
-client.login("xxx");
-=======
-client.login("##################################################");
->>>>>>> 7fdc3f264e08ea80d0fc239b308a7f94f2fb29ee
+client.login('xxx');
