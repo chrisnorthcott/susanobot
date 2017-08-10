@@ -6,6 +6,7 @@ const ytdl = require('ytdl-core');
 const moment = require('moment');
 const worker = require('webworker-threads').Worker;
 const twss = require('twss');
+
 const VOICECHANNEL = "Stuff";
 
 var nextraid;
@@ -93,6 +94,41 @@ client.on('message', (message) => {
 	{
 		lewd = !lewd;
 		message.channel.send("TWSS " + ((lewd)? 'on': 'off') + ".");	
+	}
+	function findActionID(name){
+	        var actionlist = require('./action');
+	
+	        for(var i = 0; i < actionlist.length; i++){
+	                if(actionlist[i].name_en == name){
+	                        return actionlist[i].id;
+	                }
+	        }
+	        return -1;
+	}
+	
+	if(message.content.startsWith("!action"))
+	{
+                xivdb_uri = "http://api.xivdb.com/action/" + findActionID(message.content.substr(8));
+                var ac;
+                Request.get({ json: true, uri: xivdb_uri }, (err, res, data) => {
+                        if(err){
+                                console.log('GET error ', err);
+                        }else if(res.statusCode != 200){
+                                console.log('GET error ', res.statusCode);
+                        }else{
+				console.log(res.body);
+				if(!res.body.name_en)
+				{
+					message.channel.send("Couldn't find that.");
+					return;
+				}
+		                const embed = new Discord.RichEmbed()
+		                        .setTitle(res.body.name_en)
+		                        .addField(res.body.class_name + " Action", res.body.help)
+		                        .setThumbnail(res.body.icon);
+		                message.channel.send({embed});
+			}
+                });
 	}
 	if(message.content.startsWith("!fflogs")){
 		var outmsg;
@@ -430,5 +466,5 @@ client.on('message', (message) => {
 		message.channel.send(outmsg);
 	}
 });
+client.login('MzQyMjg0MzI1NzY2ODIzOTQ3.DGaGIA.L6O-DBBF3iVmU2FUullroxBXwOE');
 
-client.login('xxx');
