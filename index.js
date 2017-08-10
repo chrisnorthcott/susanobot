@@ -3,8 +3,8 @@ const client = new Discord.Client();
 const fs = require("fs");
 const Request = require("request");
 const ytdl = require('ytdl-core');
-const moment = require('moment');
-const worker = require('webworker-threads').Worker;
+const moment = require('moment-timezone');
+const worker = require('webworker-threads').Worker
 const twss = require('twss');
 
 const VOICECHANNEL = "Stuff";
@@ -212,8 +212,10 @@ client.on('message', (message) => {
 				break;
 			case 'show':
 				var t = new Date(currentRoster.datetime);
-				var outmsg = "Current raid roster for " + moment(t.toISOString()).format('MMMM Do YYYY, h:mm a') +
-					" (" + moment(t.toISOString()).utcOffset('+0300').fromNow() + ")"+
+				var outmsg = "Current raid roster for " + moment(t.toISOString()).tz("Europe/Berlin")
+					.format('MMMM Do YYYY, h:mm a') +
+					", or " + moment(t.toISOString()).tz("Europe/London").format("h") +
+					" bong (" + moment(t.toISOString()).tz("Europe/Berlin").fromNow() + ")"+
 					"\n**" + currentRoster.topic +
 					"**\n<:tank:343069630321000459> " + currentRoster.tanks[0] +
 					"\n<:tank:343069630321000459> " + currentRoster.tanks[1] +
@@ -253,7 +255,7 @@ client.on('message', (message) => {
 				message.channel.send(":ok_hand:");
 				break;
 			default:
-				message.channel.send("Valid !roster commands are: clear, show, add [role] [name], settime [time]");
+				message.channel.send("Valid !roster commands are: clear, show, add [role] [name], settime [time] - time should be set as CEST");
 				
 		}
 		if(currentRoster.datetime > 0)
